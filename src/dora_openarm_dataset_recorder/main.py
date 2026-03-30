@@ -18,10 +18,8 @@ import argparse
 from dataclasses import dataclass, field
 import copy
 import dora
-import json
 import os
 import pathlib
-import re
 import pyarrow as pa
 import pyarrow.parquet as pq
 from numpy.typing import ArrayLike
@@ -133,11 +131,13 @@ class DatasetWriter:
 
     def finish_episode(self, episode):
         """Add a finished episode to the writer."""
-        self._episode_info.append(dict(
-            id=str(episode.number),
-            success=episode.success,
-            task_index=episode.task_index,
-        ))
+        self._episode_results.append(
+            dict(
+                id=str(episode.number),
+                success=episode.success,
+                task_index=episode.task_index,
+            )
+        )
         self._write_metadata_file()
 
     def _write_metadata_file(self):
@@ -242,7 +242,7 @@ def main():
             timestamps_key = f"{key_prefix}_timestamps"
             getattr(episode, timestamps_key).append(timestamp)
         elif event_id.startswith("camera_"):
-            camera_name = re.sub("^camera_", "", event_id)
+            name = event_id.removeprefix("camera_")
             image = event["value"]
             format = event["metadata"]["encoding"]
             # TODO: Use timestamp in the given event
