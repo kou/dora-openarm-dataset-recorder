@@ -16,16 +16,17 @@
 
 import argparse
 from dataclasses import dataclass, field
+import datetime
 import copy
 import dora
 import os
 import pathlib
 import pyarrow as pa
 import pyarrow.parquet as pq
+import math
 from numpy.typing import ArrayLike
 import shutil
 import yaml
-import time
 
 
 @dataclass
@@ -220,15 +221,17 @@ def main():
         # Main process
         if episode is None:
             continue
+        timestamp = event["metadata"]["timestamp"]
+        if isinstance(timestamp, datetime.datetime):
+            # Added by dora-rs automatically.
+            # Convert to POSIX timestamp in nanosecond.
+            timestamp = math.ceil(timestamp.timestamp() * 1_000_000_000)
         if event_id.startswith("arm_"):
             value = event["value"]
             if isinstance(value, pa.StructArray):
                 position = value.field("new_position")
-                # TODO: Use timestamp in the given event
-                timestamp = time.time_ns()
             else:
                 position = value
-                timestamp = event["metadata"]["timestamp"]
 
             # arm_right_action ->
             # right_action
@@ -245,8 +248,6 @@ def main():
             name = event_id.removeprefix("camera_")
             image = event["value"]
             format = event["metadata"]["encoding"]
-            # TODO: Use timestamp in the given event
-            timestamp = time.time_ns()
             episode_writer.write_camera_image(name, image, timestamp, format)
 
 
