@@ -40,3 +40,6 @@ extend-select = [
   "D",   # pydocstyle
   "UP"
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"!src/**.py" = ["D"]

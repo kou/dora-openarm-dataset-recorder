@@ -145,12 +145,69 @@ class DatasetWriter:
         metadata = copy.deepcopy(self._metadata_template)
         metadata["version"] = self._VERSION
         metadata["episodes"] = self._episode_results
-        docker_image = os.getenv("IMAGE")
-        if docker_image:
-            metadata["docker_image"] = docker_image
         output_path = self._base_directory / "metadata.yaml"
         with open(output_path, "w", encoding="utf-8") as f:
             yaml.dump(metadata, f, default_flow_style=False, allow_unicode=True)
+
+
+class FrequencyDetector:
+    """Detect frequency of an input."""
+
+    def __init__(self, configs):
+        """Initialize with node configurations."""
+        self._configs = configs
+
+    def detect(self, input):
+        """Detect frequency of the given input."""
+        node_id, name = input.split("/", 1)
+        for config in self._configs:
+            if config["id"] != node_id:
+                continue
+            inputs = config["inputs"]
+            next_input = inputs.get("tick", inputs.get("request_position"))
+            if next_input is None:
+                continue
+            if next_input.startswith("dora/timer/"):
+                unit, value = next_input.split("/")[2:4]
+                if unit == "secs":
+                    return 1.0 / int(value)
+                elif unit == "millis":
+                    return 1_000.0 / int(value)
+                else:
+                    return None
+            else:
+                return self.detect(next_input)
+
+
+def _collect_dynamic_metadata(metadata_template, node):
+    docker_image = os.getenv("IMAGE")
+    if docker_image:
+        metadata_template["docker_image"] = docker_image
+
+    metadata_template["frequencies"] = {
+        "action": {
+            "arms": {},
+        },
+        "obs": {
+            "arms": {},
+        },
+        "cameras": {},
+    }
+    frequency_detector = FrequencyDetector(node.dataflow_descriptor()["nodes"])
+    for name, input in node.node_config()["inputs"].items():
+        frequency = frequency_detector.detect(input)
+        if not frequency:
+            continue
+        if name.startswith("arm_"):
+            # arm_right_action -> right, action
+            side, type = name.split("_")[1:3]
+            if type == "observation":
+                type = "obs"
+            metadata_template["frequencies"][type]["arms"][side] = frequency
+        elif name.startswith("camera_"):
+            # camera_wrist_right -> wrist_right
+            camera_name = name.removeprefix("camera_")
+            metadata_template["frequencies"]["cameras"][camera_name] = frequency
 
 
 def main():
@@ -178,10 +235,11 @@ def main():
 
     node = dora.Node()
     if args.metadata_file is None:
-        metadata_template = None
+        metadata_template = {}
     else:
         with open(args.metadata_file, encoding="utf-8") as f:
             metadata_template = yaml.safe_load(f)
+    _collect_dynamic_metadata(metadata_template, node)
     dataset_writer = DatasetWriter(args.directory, args.name, metadata_template)
     episode = None
     episode_writer = None
