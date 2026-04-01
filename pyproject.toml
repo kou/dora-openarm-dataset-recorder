@@ -14,7 +14,7 @@
 
 [project]
 name = "dora-openarm-dataset-recorder"
-version = "0.1.0"
+version = "0.2.0"
 authors = [{ name = "Enactic, Inc." }]
 description = "Dora node to record data as OpenArm dataset"
 license = { text = "Apache-2.0" }

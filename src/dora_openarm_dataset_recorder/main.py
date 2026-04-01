@@ -114,7 +114,7 @@ class EpisodeWriter:
 class DatasetWriter:
     """Write a dataset."""
 
-    _VERSION = "0.1.0"
+    _VERSION = "0.2.0"
 
     def __init__(self, directory, name, metadata):
         """Initialize variables."""
