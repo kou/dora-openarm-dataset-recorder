@@ -159,6 +159,8 @@ class FrequencyDetector:
 
     def detect(self, input):
         """Detect frequency of the given input."""
+        if isinstance(input, dict):
+            input = input["source"]
         node_id, name = input.split("/", 1)
         for config in self._configs:
             if config["id"] != node_id:
