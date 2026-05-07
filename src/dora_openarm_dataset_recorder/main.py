@@ -45,6 +45,10 @@ class Episode:
     left_actions: ArrayLike = field(default_factory=list)
     left_observation_timestamps: ArrayLike = field(default_factory=list)
     left_observations: ArrayLike = field(default_factory=list)
+    elevation_action_timestamps: ArrayLike = field(default_factory=list)
+    elevation_actions: ArrayLike = field(default_factory=list)
+    elevation_observation_timestamps: ArrayLike = field(default_factory=list)
+    elevation_observations: ArrayLike = field(default_factory=list)
 
 
 class EpisodeWriter:
@@ -93,6 +97,22 @@ class EpisodeWriter:
                 self._base_directory / "obs" / "arms" / "left",
                 self._episode.left_observation_timestamps,
                 self._episode.left_observations,
+            )
+        if self._episode.elevation_actions:
+            self._write_positions(
+                self._base_directory
+                / "action"
+                / "torso"
+                / "lift"
+                / "elevation.parquet",
+                self._episode.elevation_action_timestamps,
+                self._episode.elevation_actions,
+            )
+        if self._episode.elevation_observations:
+            self._write_positions(
+                self._base_directory / "obs" / "torso" / "lift" / "elevation.parquet",
+                self._episode.elevation_observation_timestamps,
+                self._episode.elevation_observations,
             )
 
     def cancel(self):
@@ -352,6 +372,11 @@ def main():
             # right_action_timestamps
             timestamps_key = f"{key_prefix}_timestamps"
             getattr(episode, timestamps_key).append(timestamp)
+        elif event_id.startswith("elevation_"):
+            # elevation_observation -> elevation_observations, elevation_observation_timestamps
+            # elevation_action -> elevation_actions, elevation_action_timestamps
+            getattr(episode, f"{event_id}s").append(event["value"])
+            getattr(episode, f"{event_id}_timestamps").append(timestamp)
         elif event_id.startswith("camera_"):
             name = event_id.removeprefix("camera_")
             image = event["value"]
